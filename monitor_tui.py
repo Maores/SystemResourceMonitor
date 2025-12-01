@@ -28,7 +28,7 @@ class MonitorApp(App):
         
         panel_text = (
         f"[bold yellow]CPU:[/bold yellow]  {bar(cpu)}  [yellow]{cpu:.1f}%[/yellow]\n"
-        f"[bold cyan]RAM:[/bold cyan] {bar(ram)}  [cyan]{ram:.1f}%[/cyan]\n"
+        f"[bold cyan]RAM:[/bold cyan]  {bar(ram)}  [cyan]{ram:.1f}%[/cyan]\n"
         f"[bold green]Disk:[/bold green] {bar(disk)}  [green]{disk:.1f}%[/green]"
          )
         
