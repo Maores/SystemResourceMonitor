@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#78a7ff">
-<title>BlockCraft</title>
+<title>BlockKart</title>
 <link rel="icon" href="data:,">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -16,68 +16,67 @@
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
   #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-  #hud { position: absolute; inset: 0; pointer-events: none;
-    user-select: none; -webkit-user-select: none; }
+  #hud { position: absolute; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; }
+  .panel { background: rgba(0,0,0,0.4); border-radius: 8px; color: #fff; }
 
-  #crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px;
-    transform: translate(-50%, -50%); opacity: 0.8; }
-  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff;
-    mix-blend-mode: difference; }
-  #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
-  #crosshair::after { left: 0; top: 8px; width: 18px; height: 2px; }
+  #race-top { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%); display: flex; gap: 8px; align-items: center; }
+  #lap, #timer, #rank { padding: 6px 12px; font-weight: 700; font-size: 15px; }
+  #rank { color: #ffd75e; }
 
-  #hotbar { position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom));
-    transform: translateX(-50%); display: flex; gap: 4px; pointer-events: auto;
-    background: rgba(0,0,0,0.35); padding: 4px; border-radius: 8px; }
-  #hotbar canvas { width: 44px; height: 44px; border-radius: 5px;
-    border: 2px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.25);
-    image-rendering: pixelated; }
-  #hotbar canvas.sel { border-color: #fff; background: rgba(255,255,255,0.18); }
-  @media (max-width: 500px) { #hotbar canvas { width: 36px; height: 36px; } }
+  #speedo { position: absolute; left: max(12px, env(safe-area-inset-left));
+    bottom: max(14px, env(safe-area-inset-bottom)); padding: 8px 14px;
+    font-size: 24px; font-weight: 800; font-style: italic; }
+  #speedo small { font-size: 12px; font-weight: 600; opacity: 0.7; }
 
-  #joy { position: absolute; width: 120px; height: 120px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.08);
+  #map { position: absolute; right: max(10px, env(safe-area-inset-right));
+    top: max(8px, env(safe-area-inset-top)); width: 110px; height: 110px;
+    background: rgba(0,0,0,0.35); border-radius: 10px; }
+
+  #count { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%);
+    font-size: 110px; font-weight: 900; color: #fff; text-shadow: 4px 4px 0 #222;
     display: none; }
-  #joy-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px;
-    border-radius: 50%; background: rgba(255,255,255,0.45);
-    transform: translate(-50%, -50%); }
+  #wrong { position: absolute; left: 50%; top: 24%; transform: translateX(-50%);
+    font-size: 26px; font-weight: 900; color: #ff5c5c; text-shadow: 2px 2px 0 #300;
+    display: none; }
 
-  #jump { position: absolute; right: max(18px, env(safe-area-inset-right));
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 76px);
-    width: 74px; height: 74px; border-radius: 50%; pointer-events: auto;
-    border: 2px solid rgba(255,255,255,0.45); background: rgba(255,255,255,0.12);
-    color: rgba(255,255,255,0.9); font-size: 30px; line-height: 70px; text-align: center; }
-  #jump.on { background: rgba(255,255,255,0.35); }
+  .steer { position: absolute; bottom: max(14px, env(safe-area-inset-bottom));
+    width: 84px; height: 84px; border-radius: 16px; pointer-events: auto;
+    background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.4);
+    color: #fff; font-size: 34px; line-height: 80px; text-align: center; }
+  .steer:active, .steer.on { background: rgba(255,255,255,0.35); }
+  #sl { right: calc(max(14px, env(safe-area-inset-right)) + 96px); }
+  #sr { right: max(14px, env(safe-area-inset-right)); }
+  #br { left: max(14px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px);
+    width: 70px; height: 70px; border-radius: 50%; font-size: 15px; font-weight: 700; line-height: 66px; }
 
-  #ring { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px;
-    border-radius: 50%; border: 4px solid rgba(255,255,255,0.85);
-    border-top-color: transparent; display: none; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  #debug { position: absolute; left: 8px; top: max(6px, env(safe-area-inset-top));
-    color: rgba(255,255,255,0.85); font: 11px/1.4 monospace; text-shadow: 0 1px 2px #000; }
-
-  #pause { position: absolute; right: max(10px, env(safe-area-inset-right));
-    top: max(8px, env(safe-area-inset-top)); width: 40px; height: 40px; border-radius: 8px;
-    background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.35);
-    color: #fff; font-size: 18px; line-height: 38px; text-align: center; pointer-events: auto; }
+  #pause, #reset { position: absolute; top: max(8px, env(safe-area-inset-top));
+    width: 38px; height: 34px; border-radius: 8px;
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.35);
+    color: #fff; font-size: 15px; line-height: 32px; text-align: center; pointer-events: auto; }
+  #pause { left: 50%; transform: translateX(calc(-50% - 150px)); }
+  #reset { left: 50%; transform: translateX(calc(-50% + 150px)); font-size: 20px; }
 
   #err { position: absolute; left: 8px; bottom: 8px; max-width: 90%; color: #ff7b7b;
-    font: 11px monospace; white-space: pre-wrap; text-shadow: 0 1px 2px #000; }
+    font: 11px monospace; white-space: pre-wrap; text-shadow: 0 1px 2px #000; pointer-events: none; }
 
-  #menu { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     background: linear-gradient(#6ea8ff 0%, #a9d2ff 45%, #59b04f 45.2%, #3e8a37 100%); }
-  #menu.hidden { display: none; }
-  #menu-card { text-align: center; background: rgba(0,0,0,0.55); color: #fff;
-    padding: 28px 34px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
-  #menu-card h1 { font-size: 44px; letter-spacing: 2px; text-shadow: 3px 3px 0 #3b3b3b; }
-  #menu-card .tag { opacity: 0.8; margin: 4px 0 20px; }
-  #menu-card button { display: block; width: 240px; margin: 10px auto; padding: 13px 0;
-    font-size: 17px; font-weight: 600; color: #fff; background: #5b8f3e;
-    border: 2px solid #2f5420; border-bottom-width: 4px; border-radius: 8px; }
-  #menu-card button:active { transform: translateY(2px); border-bottom-width: 2px; }
-  #menu-card button.alt { background: #666; border-color: #333; }
-  #menu-card .hint { margin-top: 18px; font-size: 12px; line-height: 1.7; opacity: 0.75; }
+  .overlay.hidden { display: none; }
+  .card { text-align: center; background: rgba(0,0,0,0.55); color: #fff;
+    padding: 26px 32px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+  .card h1 { font-size: 42px; letter-spacing: 2px; text-shadow: 3px 3px 0 #3b3b3b; }
+  .card .tag { opacity: 0.8; margin: 4px 0 18px; }
+  .card button { display: block; width: 240px; margin: 10px auto; padding: 13px 0;
+    font-size: 17px; font-weight: 600; color: #fff; background: #c9542e;
+    border: 2px solid #6e2a13; border-bottom-width: 4px; border-radius: 8px; }
+  .card button:active { transform: translateY(2px); border-bottom-width: 2px; }
+  .card button.alt { background: #666; border-color: #333; }
+  .card a { display: block; margin-top: 12px; color: #ffd75e; font-weight: 600; text-decoration: none; }
+  .card .hint { margin-top: 16px; font-size: 12px; line-height: 1.7; opacity: 0.75; }
+  .card .times { font-size: 20px; font-weight: 700; margin: 6px 0 14px; line-height: 1.6; }
+
+  #finish { background: rgba(0,0,0,0.45); }
 </style>
 <script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>
 </head>
@@ -85,30 +84,48 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div id="crosshair"></div>
-    <div id="debug"></div>
-    <div id="hotbar"></div>
-    <div id="joy"><div id="joy-knob"></div></div>
-    <div id="jump">&#8679;</div>
-    <div id="ring"></div>
+    <div id="race-top">
+      <div id="lap" class="panel">LAP 1/3</div>
+      <div id="timer" class="panel">0:00.0</div>
+      <div id="rank" class="panel">1st</div>
+    </div>
+    <canvas id="map" width="110" height="110"></canvas>
+    <div id="speedo" class="panel">0 <small>km/h</small></div>
+    <div id="count"></div>
+    <div id="wrong">&#9888; WRONG WAY</div>
+    <div id="sl" class="steer">&#9664;</div>
+    <div id="sr" class="steer">&#9654;</div>
+    <div id="br" class="steer">BRAKE</div>
     <div id="pause">&#10074;&#10074;</div>
+    <div id="reset">&#8634;</div>
     <div id="err"></div>
   </div>
 
-  <div id="menu">
-    <div id="menu-card">
-      <h1>BLOCKCRAFT</h1>
-      <p class="tag">a pocket voxel sandbox</p>
-      <button id="btn-play">Play</button>
-      <button id="btn-new" class="alt">New World</button>
+  <div id="menu" class="overlay">
+    <div class="card">
+      <h1>&#127937; BLOCKKART</h1>
+      <p class="tag">blocky kart racing</p>
+      <button id="btn-race">Race!</button>
+      <button id="btn-track" class="alt">New Track</button>
+      <a href="sandbox.html">&#129521; Sandbox mode &rarr;</a>
       <p class="hint">
-        drag to look &middot; joystick to walk &middot; jump button to hop/swim<br>
-        tap to place &middot; press &amp; hold to mine &middot; bottom bar picks blocks<br>
-        desktop: WASD + mouse, left-click mine, right-click place
+        auto-throttle &middot; &#9664; &#9654; buttons steer &middot; BRAKE slows/reverses<br>
+        cyan strips = speed boost &middot; 3 laps, beat the karts!<br>
+        desktop: &larr; &rarr; or A/D steer, &darr;/S brake
       </p>
     </div>
   </div>
 
-  <script type="module" src="./game.js"></script>
+  <div id="finish" class="overlay hidden">
+    <div class="card">
+      <h1>&#127942; FINISH!</h1>
+      <div class="times" id="ftimes"></div>
+      <button id="btn-again">Race Again</button>
+      <button id="btn-track2" class="alt">New Track</button>
+      <a href="sandbox.html">&#129521; Sandbox mode &rarr;</a>
+    </div>
+  </div>
+
+  <script type="module" src="./race.js"></script>
 </body>
 </html>
