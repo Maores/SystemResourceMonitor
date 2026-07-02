@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#78a7ff">
+<title>BlockCraft</title>
+<link rel="icon" href="data:,">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
+    overscroll-behavior: none; touch-action: none; position: fixed;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #hud { position: absolute; inset: 0; pointer-events: none;
+    user-select: none; -webkit-user-select: none; }
+
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px;
+    transform: translate(-50%, -50%); opacity: 0.8; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff;
+    mix-blend-mode: difference; }
+  #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
+  #crosshair::after { left: 0; top: 8px; width: 18px; height: 2px; }
+
+  #hotbar { position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%); display: flex; gap: 4px; pointer-events: auto;
+    background: rgba(0,0,0,0.35); padding: 4px; border-radius: 8px; }
+  #hotbar canvas { width: 44px; height: 44px; border-radius: 5px;
+    border: 2px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.25);
+    image-rendering: pixelated; }
+  #hotbar canvas.sel { border-color: #fff; background: rgba(255,255,255,0.18); }
+  @media (max-width: 500px) { #hotbar canvas { width: 36px; height: 36px; } }
+
+  #joy { position: absolute; width: 120px; height: 120px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.08);
+    display: none; }
+  #joy-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px;
+    border-radius: 50%; background: rgba(255,255,255,0.45);
+    transform: translate(-50%, -50%); }
+
+  #jump { position: absolute; right: max(18px, env(safe-area-inset-right));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 76px);
+    width: 74px; height: 74px; border-radius: 50%; pointer-events: auto;
+    border: 2px solid rgba(255,255,255,0.45); background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.9); font-size: 30px; line-height: 70px; text-align: center; }
+  #jump.on { background: rgba(255,255,255,0.35); }
+
+  #ring { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+    border-radius: 50%; border: 4px solid rgba(255,255,255,0.85);
+    border-top-color: transparent; display: none; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #debug { position: absolute; left: 8px; top: max(6px, env(safe-area-inset-top));
+    color: rgba(255,255,255,0.85); font: 11px/1.4 monospace; text-shadow: 0 1px 2px #000; }
+
+  #pause { position: absolute; right: max(10px, env(safe-area-inset-right));
+    top: max(8px, env(safe-area-inset-top)); width: 40px; height: 40px; border-radius: 8px;
+    background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.35);
+    color: #fff; font-size: 18px; line-height: 38px; text-align: center; pointer-events: auto; }
+
+  #err { position: absolute; left: 8px; bottom: 8px; max-width: 90%; color: #ff7b7b;
+    font: 11px monospace; white-space: pre-wrap; text-shadow: 0 1px 2px #000; }
+
+  #menu { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(#6ea8ff 0%, #a9d2ff 45%, #59b04f 45.2%, #3e8a37 100%); }
+  #menu.hidden { display: none; }
+  #menu-card { text-align: center; background: rgba(0,0,0,0.55); color: #fff;
+    padding: 28px 34px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+  #menu-card h1 { font-size: 44px; letter-spacing: 2px; text-shadow: 3px 3px 0 #3b3b3b; }
+  #menu-card .tag { opacity: 0.8; margin: 4px 0 20px; }
+  #menu-card button { display: block; width: 240px; margin: 10px auto; padding: 13px 0;
+    font-size: 17px; font-weight: 600; color: #fff; background: #5b8f3e;
+    border: 2px solid #2f5420; border-bottom-width: 4px; border-radius: 8px; }
+  #menu-card button:active { transform: translateY(2px); border-bottom-width: 2px; }
+  #menu-card button.alt { background: #666; border-color: #333; }
+  #menu-card .hint { margin-top: 18px; font-size: 12px; line-height: 1.7; opacity: 0.75; }
+</style>
+<script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="debug"></div>
+    <div id="hotbar"></div>
+    <div id="joy"><div id="joy-knob"></div></div>
+    <div id="jump">&#8679;</div>
+    <div id="ring"></div>
+    <div id="pause">&#10074;&#10074;</div>
+    <div id="err"></div>
+  </div>
+
+  <div id="menu">
+    <div id="menu-card">
+      <h1>BLOCKCRAFT</h1>
+      <p class="tag">a pocket voxel sandbox</p>
+      <button id="btn-play">Play</button>
+      <button id="btn-new" class="alt">New World</button>
+      <a href="index.html" style="display:block;margin-top:10px;color:#ffd75e;font-weight:600;text-decoration:none">&#127937; Racing mode &rarr;</a>
+      <p class="hint">
+        drag to look &middot; joystick to walk &middot; jump button to hop/swim<br>
+        tap to place &middot; press &amp; hold to mine &middot; bottom bar picks blocks<br>
+        desktop: WASD + mouse, left-click mine, right-click place
+      </p>
+    </div>
+  </div>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

@@ -1,22 +1,28 @@
-# BlockCraft
+# BlockKart + BlockCraft
 
-A mobile-first voxel sandbox in the spirit of Minecraft, written in plain
-HTML + JavaScript (three.js for rendering). No build step, no server, no
-dependencies to install — open `index.html` and play.
+Two Minecraft-style games in plain HTML + JavaScript (three.js for
+rendering). No build step, no server — static files, playable on phones.
 
-## Features
+## 🏁 BlockKart (`index.html`) — the main game
 
-- **Infinite procedurally generated terrain** — rolling hills, mountains,
-  oceans, sandy beaches, and trees, streamed in 16×16 chunks around you
-- **Mine & build** — 8 placeable block types on a Minecraft-PE-style hotbar
-- **Touch controls** — floating joystick to walk, drag to look, jump/swim
-  button, tap to place, press-and-hold to mine (auto-jump included)
-- **Desktop controls** — WASD + mouse-look (click to lock pointer),
-  left-click mine, right-click place, 1–8 / scroll to pick blocks
-- **Day/night cycle**, distance fog, swimmable water with underwater fog
-- **Persistent worlds** — edits, position, and seed auto-save to
-  `localStorage`; continue where you left off
-- **Original procedurally painted textures** — no copyrighted assets
+Blocky kart racing on procedurally generated voxel circuits.
+
+- **Procedural race tracks** — every seed is a new closed circuit with
+  elevation changes, carved through hills, beaches, and forests
+- **Arcade kart physics** — auto-throttle, steer, brake/reverse, wall
+  bounces, off-road slowdown, cyan **boost strips**
+- **A real race** — 3 AI karts, 3 laps, 8 checkpoints, live position
+  (1st–4th), lap timer, best-lap record saved locally, wrong-way warning
+- **Racing furniture** — asphalt with dashed center line, red/white curbs,
+  checkered start gate, live minimap
+- **Touch controls** — ◀ ▶ steer buttons, BRAKE button, ↺ reset-to-track;
+  desktop: arrows/WASD, R to reset
+
+## 🧱 BlockCraft (`sandbox.html`) — sandbox mode
+
+The original mine-and-build voxel sandbox: infinite terrain, 8 block
+types, day/night, water, tap-to-place / hold-to-mine touch controls, and
+worlds that auto-save to localStorage. Linked from the racing menu.
 
 ## Play it
 
@@ -24,42 +30,32 @@ dependencies to install — open `index.html` and play.
 
 ```bash
 python3 -m http.server 8000
-# then open http://localhost:8000 (module scripts need http://, not file://)
+# open http://localhost:8000 (racing) or /sandbox.html (sandbox)
 ```
 
-**On your phone (GitHub Pages):** repo Settings → Pages → deploy from the
-default branch, then open the Pages URL on your phone. Add it to your home
-screen for fullscreen play.
-
-## Controls
-
-| Action | Mobile | Desktop |
-| --- | --- | --- |
-| Walk | left-side joystick | WASD |
-| Look | drag anywhere else | mouse (click canvas first) |
-| Jump / swim up | round button, bottom-right | Space |
-| Mine a block | press & hold on it | hold left-click |
-| Place a block | tap | right-click |
-| Pick a block | tap the hotbar | 1–8 or scroll wheel |
+**On your phone:** enable GitHub Pages (Settings → Pages → deploy from
+branch → main /root), then open the Pages URL. Add to home screen for
+fullscreen.
 
 ## Tech notes
 
-- `game.js` — the whole engine: seeded value-noise terrain, chunk meshing
-  with hidden-face culling, AABB physics, Amanatides–Woo voxel raycasting,
-  canvas-painted texture atlas
-- `three.module.min.js` — vendored three.js r160, so the game works fully
-  offline
-- World height 64, sea level 22, render distance 3 chunks on mobile /
-  5 on desktop
+- `race.js` — racing engine: closed Catmull-Rom track spline stamped into
+  the voxel terrain, kart physics, spline-following AI, lap/checkpoint
+  logic, minimap
+- `game.js` — sandbox engine: chunk streaming, AABB physics,
+  Amanatides–Woo voxel raycasting
+- Both share the same seeded value-noise terrain, chunk mesher with
+  hidden-face culling, and a procedurally painted texture atlas
+  (no copyrighted assets)
+- `three.module.min.js` — vendored three.js r160, fully offline
 
 ## Roadmap ideas
 
-- Crafting and an inventory beyond the hotbar
-- Flowing water, caves, ores
-- Mobs and survival health/hunger
+- Kart-vs-kart collisions, drifting, items/power-ups
+- Track editor built on the sandbox
+- Crafting, caves, mobs for sandbox mode
 - Multiplayer via WebRTC
 
 ---
 
-*BlockCraft is an original fan-style voxel game and is not affiliated with
-Mojang or Microsoft.*
+*Original fan-style games, not affiliated with Mojang or Microsoft.*
