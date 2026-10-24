@@ -75,6 +75,9 @@
   .card a { display: block; margin-top: 12px; color: #ffd75e; font-weight: 600; text-decoration: none; }
   .card .hint { margin-top: 16px; font-size: 12px; line-height: 1.7; opacity: 0.75; }
   .card .times { font-size: 20px; font-weight: 700; margin: 6px 0 14px; line-height: 1.6; }
+  .card .ghost-tag { margin: -8px 0 14px; font-weight: 700; color: #e6f2ff; }
+  .card .ghost-tag:empty { display: none; }
+  .card button.share { background: #3f7fd6; border-color: #1d4686; }
 
   #finish { background: rgba(0,0,0,0.45); }
 </style>
@@ -105,12 +108,14 @@
     <div class="card">
       <h1>&#127937; BLOCKKART</h1>
       <p class="tag">blocky kart racing</p>
+      <p class="ghost-tag" id="ghost-tag"></p>
       <button id="btn-race">Race!</button>
       <button id="btn-track" class="alt">New Track</button>
       <a href="sandbox.html">&#129521; Sandbox mode &rarr;</a>
       <p class="hint">
         auto-throttle &middot; &#9664; &#9654; buttons steer &middot; BRAKE slows/reverses<br>
         cyan strips = speed boost &middot; 3 laps, beat the karts!<br>
+        &#128123; finish to save a ghost, then send it to a friend<br>
         desktop: &larr; &rarr; or A/D steer, &darr;/S brake
       </p>
     </div>
@@ -120,6 +125,7 @@
     <div class="card">
       <h1>&#127942; FINISH!</h1>
       <div class="times" id="ftimes"></div>
+      <button id="btn-share" class="share">&#128228; Challenge a friend</button>
       <button id="btn-again">Race Again</button>
       <button id="btn-track2" class="alt">New Track</button>
       <a href="sandbox.html">&#129521; Sandbox mode &rarr;</a>

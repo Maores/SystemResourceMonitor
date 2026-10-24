@@ -26,10 +26,12 @@ const MOBILE = matchMedia('(pointer: coarse)').matches;
 const RENDER_R = MOBILE ? 4 : 6;
 const ROAD_HALF = 3.5, CURB_OUT = 4.5, BLEND_OUT = 16;
 const VMAX = 30, LAPS = 3;
-const SEED_KEY = 'blockkart.seed', BEST_KEY = 'blockkart.best';
+const SEED_KEY = 'blockkart.seed', BEST_KEY = 'blockkart.best', GHOST_KEY = 'blockkart.ghost.';
+const GHOST_DT = 0.2; // seconds between recorded ghost positions
 
 /* ================= seeded noise (same flavor as the sandbox) ================= */
-let SEED = +localStorage.getItem(SEED_KEY);
+const linkGhost = parseGhostHash(); // a friend's run from a #ghost= link brings its own track seed
+let SEED = linkGhost ? linkGhost.seed : +localStorage.getItem(SEED_KEY);
 if (!SEED) SEED = (Math.random() * 2 ** 31) | 0;
 
 function hash2(x, z) {
@@ -570,6 +572,98 @@ function playerRank() {
   return r;
 }
 
+/* ================= ghost: record a run, replay it, share it as a link ================= */
+// A run is the kart's position every GHOST_DT seconds, quantized to 0.1 m and delta-coded as
+// int8 pairs (byte 128 escapes to absolute int16s, which covers resets), then base64url.
+// The code carries seed + time + path, so a friend races your exact track with no server.
+function encodePath(path) {
+  const b = [];
+  let px = 0, pz = 0;
+  path.forEach(([x, z], i) => {
+    const qx = Math.round(x * 10), qz = Math.round(z * 10), dx = qx - px, dz = qz - pz;
+    if (i && Math.abs(dx) < 128 && Math.abs(dz) < 128) b.push(dx & 255, dz & 255);
+    else b.push(128, (qx >> 8) & 255, qx & 255, (qz >> 8) & 255, qz & 255);
+    px = qx; pz = qz;
+  });
+  return b;
+}
+function decodePath(b) {
+  const s8 = v => v > 127 ? v - 256 : v, s16 = (hi, lo) => s8(hi) * 256 + lo;
+  const path = [];
+  let x = 0, z = 0, i = 0;
+  while (i < b.length) {
+    if (b[i] === 128) { x = s16(b[i + 1], b[i + 2]); z = s16(b[i + 3], b[i + 4]); i += 5; }
+    else { x += s8(b[i]); z += s8(b[i + 1]); i += 2; }
+    path.push([x / 10, z / 10]);
+  }
+  if (i !== b.length) throw new Error('truncated ghost');
+  return path;
+}
+function toB64(b) {
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromB64(s) {
+  return Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+}
+function encodeGhost(g) {
+  return `${g.seed.toString(36)}.${Math.round(g.ms).toString(36)}.${toB64(encodePath(g.path))}`;
+}
+function decodeGhost(code) {
+  try {
+    const [s, t, p] = code.split('.');
+    const g = { seed: parseInt(s, 36), ms: parseInt(t, 36), path: decodePath(fromB64(p)) };
+    // a link cut short by a messenger still decodes, so make sure the path covers the whole run
+    return g.seed > 0 && g.ms > 0 && g.path.length * GHOST_DT * 1000 >= g.ms - 500 ? g : null;
+  } catch { return null; }
+}
+function parseGhostHash() {
+  const m = location.hash.match(/ghost=([\w.-]+)/);
+  return m ? decodeGhost(m[1]) : null;
+}
+
+let ghost = null; // the run being raced: the faster of your saved best and a friend's link
+let rec = [];     // this run's path
+const ghostKart = makeKart(0x8fe3ff);
+ghostKart.traverse(o => {
+  if (o.material) for (const m of o.material) { m.transparent = true; m.opacity = 0.55; m.depthWrite = false; }
+});
+ghostKart.visible = false;
+
+const savedGhost = () => decodeGhost(localStorage.getItem(GHOST_KEY + SEED) || '');
+function loadGhost() {
+  const mine = savedGhost();
+  const link = linkGhost && linkGhost.seed === SEED ? linkGhost : null;
+  ghost = link && (!mine || link.ms < mine.ms) ? link : mine;
+  el('ghost-tag').innerHTML = !ghost ? '' : ghost === linkGhost
+    ? `&#128123; Challenge: beat ${fmtTime(ghost.ms)} on this track!`
+    : `&#128123; Your ghost: ${fmtTime(ghost.ms)}`;
+}
+
+function updateGhost(t, dt) { // t = seconds since the start signal
+  if (state === 'race') while (rec.length * GHOST_DT <= t) rec.push([car.x, car.z]);
+  const f = Math.max(0, t) / GHOST_DT, i = Math.floor(f);
+  ghostKart.visible = !!ghost && i < ghost.path.length - 1;
+  if (!ghostKart.visible) return;
+  const [ax, az] = ghost.path[i], [bx, bz] = ghost.path[i + 1];
+  const x = lerp(ax, bx, f - i), z = lerp(az, bz, f - i);
+  const gy = columnSurface(Math.floor(x), Math.floor(z)).h + 1;
+  ghostKart.position.set(x, lerp(ghostKart.position.y || gy, gy, Math.min(1, dt * 10)), z);
+  if (Math.hypot(bx - ax, bz - az) > 0.3) ghostKart.rotation.y = Math.atan2(bx - ax, bz - az);
+}
+
+async function shareGhost() {
+  const code = localStorage.getItem(GHOST_KEY + SEED);
+  if (!code) return;
+  const url = location.href.split(/[?#]/)[0] + '#ghost=' + code;
+  const text = `Beat my ${fmtTime(decodeGhost(code).ms)} on this BlockKart track!`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'BlockKart', text, url });
+    else { await navigator.clipboard.writeText(url); el('btn-share').textContent = 'Link copied!'; }
+  } catch (e) {
+    if (e.name !== 'AbortError') prompt('Copy this link and send it:', url);
+  }
+}
+
 /* ================= chunk streaming ================= */
 function updateChunks() {
   const pcx = Math.floor(car.x / CHUNK), pcz = Math.floor(car.z / CHUNK);
@@ -639,6 +733,12 @@ function drawMinimap() {
     g.arc(55 + (a.mesh.position.x - mapOff.x) * mapScale, 55 + (a.mesh.position.z - mapOff.z) * mapScale, 3, 0, 7);
     g.fill();
   }
+  if (ghostKart.visible) {
+    g.fillStyle = 'rgba(143,227,255,0.9)';
+    g.beginPath();
+    g.arc(55 + (ghostKart.position.x - mapOff.x) * mapScale, 55 + (ghostKart.position.z - mapOff.z) * mapScale, 3, 0, 7);
+    g.fill();
+  }
   g.fillStyle = '#ff4b4b';
   g.beginPath();
   g.arc(55 + (car.x - mapOff.x) * mapScale, 55 + (car.z - mapOff.z) * mapScale, 4, 0, 7);
@@ -675,6 +775,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 function startRace() {
   placeKarts();
   lapTimes = [];
+  rec = [];
   state = 'count';
   countT = 3.4;
   menuEl.classList.add('hidden');
@@ -686,20 +787,31 @@ function finishRace() {
   const bestLap = Math.min(...lapTimes);
   const prevBest = +localStorage.getItem(BEST_KEY) || Infinity;
   if (bestLap < prevBest) localStorage.setItem(BEST_KEY, bestLap);
+  rec.push([car.x, car.z]);
+  const d = ghost ? (raceTime - ghost.ms) / 1000 : 0;
+  const mine = savedGhost();
+  if (!mine || raceTime < mine.ms)
+    localStorage.setItem(GHOST_KEY + SEED, encodeGhost({ seed: SEED, ms: raceTime, path: rec }));
   ftimesEl.innerHTML =
     `You finished <b>${ordinal(playerRank())}</b>!<br>` +
     `Total ${fmtTime(raceTime)} &middot; Best lap ${fmtTime(bestLap)}` +
-    (bestLap < prevBest ? ' &#11088; new record!' : '');
+    (bestLap < prevBest ? ' &#11088; new record!' : '') +
+    (!ghost ? '' : d < 0 ? `<br>&#128123; You beat the ghost by ${(-d).toFixed(1)}s!`
+                         : `<br>&#128123; The ghost wins by ${d.toFixed(1)}s`);
+  el('btn-share').textContent = '\u{1F4E4} Challenge a friend';
+  loadGhost();
   finishEl.classList.remove('hidden');
 }
 function newTrack() {
   SEED = (Math.random() * 2 ** 31) | 0;
   localStorage.setItem(SEED_KEY, SEED);
+  if (location.hash) history.replaceState(null, '', location.href.split('#')[0]);
   colCache.clear(); surfCache.clear();
   for (const ch of chunks.values()) disposeChunkMeshes(ch);
   chunks.clear();
   buildTrack();
   buildMinimap();
+  loadGhost();
   startRace();
 }
 function resetToTrack() {
@@ -718,6 +830,7 @@ el('btn-race').addEventListener('click', startRace);
 el('btn-again').addEventListener('click', startRace);
 el('btn-track').addEventListener('click', newTrack);
 el('btn-track2').addEventListener('click', newTrack);
+el('btn-share').addEventListener('click', shareGhost);
 el('pause').addEventListener('click', () => { state = 'menu'; menuEl.classList.remove('hidden'); });
 
 /* ================= boot ================= */
@@ -725,6 +838,7 @@ localStorage.setItem(SEED_KEY, SEED);
 buildTrack();
 buildMinimap();
 placeKarts();
+loadGhost();
 
 const skyDay = new THREE.Color(0x87b9ec);
 const skyNow = new THREE.Color();
@@ -755,6 +869,8 @@ function animate(now) {
     wrongEl.style.display = car.wrongT > 0.9 ? 'block' : 'none';
   }
   if (state === 'finished') updateAI(dt);
+  if (state === 'menu') ghostKart.visible = false;
+  else updateGhost(state === 'count' ? 0 : (performance.now() - raceT0) / 1000, dt);
 
   playerKart.position.set(car.x, car.y, car.z);
   playerKart.rotation.y = car.th;
@@ -791,4 +907,5 @@ requestAnimationFrame(animate);
 if (location.search.includes('autoplay')) startRace();
 
 // debug/test hook
-window.__race = { car, ai, input, get state() { return state; }, track: () => track, columnSurface, startRace };
+window.__race = { car, ai, input, get state() { return state; }, track: () => track, columnSurface, startRace,
+  get ghost() { return ghost; }, ghostKart, encodeGhost, decodeGhost };

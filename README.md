@@ -15,6 +15,10 @@ Blocky kart racing on procedurally generated voxel circuits.
   (1st–4th), lap timer, best-lap record saved locally, wrong-way warning
 - **Racing furniture** — asphalt with dashed center line, red/white curbs,
   checkered start gate, live minimap
+- **Ghost challenges** — your best run on each track is saved as a translucent
+  ghost you race against. **📤 Challenge a friend** sends a link that carries the
+  track seed and your whole run (~1 KB in the URL), so they race your ghost on
+  the exact same circuit — no server, no accounts
 - **Touch controls** — ◀ ▶ steer buttons, BRAKE button, ↺ reset-to-track;
   desktop: arrows/WASD, R to reset
 
@@ -41,7 +45,8 @@ fullscreen.
 
 - `race.js` — racing engine: closed Catmull-Rom track spline stamped into
   the voxel terrain, kart physics, spline-following AI, lap/checkpoint
-  logic, minimap
+  logic, minimap, ghost recording (positions every 0.2 s, delta-coded to
+  2 bytes per sample, base64url in the `#ghost=` link)
 - `game.js` — sandbox engine: chunk streaming, AABB physics,
   Amanatides–Woo voxel raycasting
 - Both share the same seeded value-noise terrain, chunk mesher with
